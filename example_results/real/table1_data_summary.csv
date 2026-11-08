@@ -1,0 +1,14 @@
+method,period,rows,cells,pct_present
+public,other,511.0,100,100.0
+public,test,144459.0,1614,100.0
+public,train,280777.0,1102,100.0
+survey,other,126741.0,1687,9.3
+survey,test,106102.0,3157,19.4
+survey,train,272594.0,3531,11.8
+analysis,test cells: all,1917.0,1917,49.1
+analysis,test cells: reported_cells,771.0,771,74.2
+analysis,test cells: zero_report_cells,1146.0,1146,32.2
+analysis,test cells: core_states,931.0,931,57.4
+analysis,test cells: transfer_states,986.0,986,41.3
+analysis,training positive cells,280777.0,1102,100.0
+analysis,accessible-area cells (M),,3269,
