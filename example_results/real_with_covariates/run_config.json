@@ -1,0 +1,62 @@
+{
+  "version": "1.0.0",
+  "python": "3.13.18",
+  "config": {
+    "train_years": [
+      2019,
+      2020,
+      2021
+    ],
+    "test_years": [
+      2022,
+      2023
+    ],
+    "target": "present",
+    "region_km": 250.0,
+    "min_survey_rows": 3,
+    "kde_bandwidth_km": 20.0,
+    "buffer_km": 50.0,
+    "thin_km": 30.0,
+    "bg_ratio": 3.0,
+    "max_bg_frac": 0.6,
+    "env_k": 5,
+    "env_quantile": 0.5,
+    "effort_alpha": 1.0,
+    "replicates": 10,
+    "n_trees": 200,
+    "n_jobs": 4,
+    "seed": 20261107,
+    "block_km": 50.0,
+    "bootstrap": 200,
+    "core_state_share": 0.05,
+    "alert_fracs": [
+      0.1,
+      0.2,
+      0.3
+    ],
+    "alert_primary": 0.2
+  },
+  "features": [
+    "bio1",
+    "bio4",
+    "bio6",
+    "bio12",
+    "dist_origin_km"
+  ],
+  "origin_lonlat": [
+    -75.64706,
+    40.45045
+  ],
+  "core_states": [
+    "PA",
+    "NJ"
+  ],
+  "notes": {
+    "dropped_rows_missing_present": "157",
+    "cells_dropped_missing_covariates": "3",
+    "positives_dropped_missing_covariates": "2",
+    "effort_source": "external:logpop"
+  },
+  "lyde_file": "/mnt/user-data/uploads/lyde_1.csv",
+  "seconds": 72.6
+}
