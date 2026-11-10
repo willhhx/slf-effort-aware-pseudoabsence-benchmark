@@ -26,7 +26,7 @@ python make_tables.py --real results/real --sim results/simulation --out results
 Python 3.9+ is fine. Everything is seeded: re-running gives identical numbers on the same library
 versions (tiny differences across scikit-learn versions are normal).
 
-## 2. Design (what a reviewer will ask)
+## 2. Design
 
 | Step | Choice | Why |
 |---|---|---|
