@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from .background import TREATMENTS, build_training
+from .background import ABLATION, TREATMENTS, build_training
 from .metrics import (METRICS, alert_flags, auc, ap, block_ids, bootstrap_indices, boyce)
 from .models import MODELS, fit_predict
 
@@ -39,7 +39,11 @@ def run_treatments(ds, treatments=TREATMENTS, models=MODELS, replicates=None, fo
                 else:
                     allowed = folds != f
                     pred_idx = np.flatnonzero(folds == f)
-                rng = np.random.default_rng(np.random.SeedSequence([cfg.seed, ti, r, fi]))
+                # seed stream per treatment: fixed by its position in TREATMENTS (or 100 + its
+                # position in ABLATION) so that a treatment gets the same draws whichever subset runs
+                tid = (TREATMENTS.index(t) if t in TREATMENTS else
+                       100 + ABLATION.index(t) if t in ABLATION else ti)
+                rng = np.random.default_rng(np.random.SeedSequence([cfg.seed, tid, r, fi]))
                 idx, y, w, add_eff, note = build_training(t, ds, rng, allowed)
                 Xtr, Xp = X[idx], X[pred_idx]
                 if add_eff:

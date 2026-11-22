@@ -324,3 +324,44 @@ class TestCovariates(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestRevision(unittest.TestCase):
+    """Ablation variants and revision helpers."""
+
+    def test_ablation_components(self):
+        from slf_effort.background import ABLATION, _standardise
+        ds = build_dataset(make_ds()[0], CFG)
+        c = ds.cells
+        X = c[ds.feat_cols].to_numpy(float)
+        xyz = c[["x", "y", "z"]].to_numpy()
+        pos = np.flatnonzero(c["is_pos"].to_numpy())
+        Xs = _standardise(X, c["in_M"].to_numpy())
+        for t in ABLATION:
+            idx, y, w, _, note = build_training(t, ds, np.random.default_rng(0))
+            bg = idx[y == 0]
+            self.assertTrue(c["in_M"].to_numpy()[bg].all(), t)
+            if "B" in t[4:] and note != "geo_relaxed":
+                self.assertTrue((nearest_distance(xyz[bg], xyz[pos]) > ds.cfg.buffer_km).all(), t)
+            if "E" in t[4:] and note == "":
+                inside = env_similar(Xs, pos, bg, ds.cfg.env_k, ds.cfg.env_quantile)
+                self.assertFalse(inside.any(), t)
+
+    def test_seed_stream_independent_of_subset(self):
+        from slf_effort.experiment import run_treatments
+        ds = build_dataset(make_ds()[0], replace(CFG, replicates=1, n_trees=10))
+        a, _ = run_treatments(ds, treatments=("random_bg", "ewc_pa"))
+        b, _ = run_treatments(ds, treatments=("ewc_pa",))
+        np.testing.assert_allclose(a[("ewc_pa", "rf")], b[("ewc_pa", "rf")])
+
+    def test_calibration_slope_and_novelty(self):
+        from slf_effort.revision import calibration_slope, environmental_novelty
+        rng = np.random.default_rng(1)
+        p = rng.uniform(0.05, 0.95, 4000)
+        y = rng.random(4000) < p
+        self.assertAlmostEqual(calibration_slope(y, p), 1.0, delta=0.15)
+        ds = build_dataset(make_ds()[0], CFG)
+        d, pct, analog = environmental_novelty(ds)
+        self.assertEqual(len(d), len(ds.cells))
+        self.assertTrue(((pct >= 0) & (pct <= 1)).all())
+        self.assertGreater(analog[ds.cells["is_pos"].to_numpy()].mean(), 0.9)

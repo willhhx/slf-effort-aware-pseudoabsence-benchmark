@@ -24,6 +24,15 @@ from .geo import nearest_distance
 
 TREATMENTS = ("random_bg", "thin_bg", "kde_bg", "ewc_pa", "ewc_pa_ipw", "effort_cov")
 
+# Component ablation of ewc_pa (B = 50-km geographic buffer, E = environmental-envelope
+# exclusion, W = sampling weighted by reporting propensity). random_bg is "no component"
+# and abl_BEW is all three. Unlike ewc_pa, the ablation ENFORCES environmental exclusion at
+# cfg.env_quantile (no fallback). In ewc_pa the exclusion is relaxed whenever fewer candidates
+# remain than the target number of pseudo-absences; on the real data this always happens (only
+# ~1,000 cells lie beyond the buffer), so ewc_pa as run = buffer + effort weighting.
+ABLATION = ("abl_B", "abl_E", "abl_W", "abl_BE", "abl_BW", "abl_EW", "abl_BEW")
+ALL_TREATMENTS = TREATMENTS + ABLATION
+
 LABELS = {
     "random_bg": "Random background",
     "thin_bg": "Spatial thinning",
@@ -31,6 +40,10 @@ LABELS = {
     "ewc_pa": "Effort-weighted constrained PA (proposed)",
     "ewc_pa_ipw": "Proposed + inverse-propensity weights",
     "effort_cov": "Effort covariate held constant",
+    "abl_B": "Buffer only", "abl_E": "Environmental exclusion only", "abl_W": "Effort weighting only",
+    "abl_BE": "Buffer + environmental exclusion", "abl_BW": "Buffer + effort weighting",
+    "abl_EW": "Environmental exclusion + effort weighting",
+    "abl_BEW": "Buffer + environmental exclusion + effort weighting (exclusion enforced)",
     "BASE_reports": "Baseline: report count",
     "BASE_kde": "Baseline: report KDE",
 }
@@ -78,6 +91,26 @@ def _ewc_candidates(c, X, pos, Midx, n_bg, cfg):
     return cand, f"short:{len(cand)}"
 
 
+def _component_candidates(c, X, pos, Midx, n_bg, cfg, use_buffer, use_env):
+    """Candidate pseudo-absence cells for the ablation variants (same rules as ewc_pa)."""
+    cand = Midx
+    note = ""
+    if use_buffer:
+        xyz = c[["x", "y", "z"]].to_numpy()
+        d_pos = nearest_distance(xyz[Midx], xyz[pos])
+        cand = Midx[d_pos > cfg.buffer_km]
+        if len(cand) == 0:
+            return Midx[np.argsort(-d_pos)[:n_bg]], "geo_relaxed"
+    if use_env:
+        Xs = _standardise(X, np.isin(np.arange(len(c)), Midx))
+        sim = env_similar(Xs, pos, cand, cfg.env_k, cfg.env_quantile)
+        if (~sim).sum() >= 5:
+            cand = cand[~sim]
+        else:
+            note = "env_skipped_too_few"
+    return cand, note
+
+
 def build_training(treatment: str, ds, rng: np.random.Generator,
                    allowed: Optional[np.ndarray] = None):
     """Return (idx, y, w, add_effort_covariate, note).
@@ -86,7 +119,7 @@ def build_training(treatment: str, ds, rng: np.random.Generator,
     pseudo-absence; w: sample weights with total presence weight == total
     background weight.
     """
-    if treatment not in TREATMENTS:
+    if treatment not in ALL_TREATMENTS:
         raise ValueError(f"unknown treatment {treatment}")
     c, cfg = ds.cells, ds.cfg
     n = len(c)
@@ -117,6 +150,16 @@ def build_training(treatment: str, ds, rng: np.random.Generator,
     elif treatment == "kde_bg":
         p = c["effort_kde"].to_numpy(float)[Midx] + 1e-6
         bg = rng.choice(Midx, n_bg, replace=False, p=p / p.sum())
+    elif treatment in ABLATION:
+        comp = treatment[4:]
+        cand, note = _component_candidates(c, X, pos, Midx, n_bg, cfg, "B" in comp, "E" in comp)
+        k = int(min(n_bg, max(5, cfg.max_bg_frac * len(cand))))
+        k = min(k, len(cand))
+        if "W" in comp:
+            p = q[cand] ** cfg.effort_alpha
+            bg = rng.choice(cand, k, replace=False, p=p / p.sum())
+        else:
+            bg = rng.choice(cand, k, replace=False)
     else:  # ewc_pa, ewc_pa_ipw
         cand, note = _ewc_candidates(c, X, pos, Midx, n_bg, cfg)
         # Subsample so that effort weighting matters and replicates differ even

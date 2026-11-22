@@ -87,6 +87,27 @@ these** (e.g. WorldClim bio1 over PA/NJ should be roughly 8-14 degrees C; a popu
 should be non-negative). Cells with missing covariates are dropped and reported. Rasters must be in
 geographic lon/lat (EPSG:4326).
 
+## 3b. Revision analyses (peer review)
+
+```bash
+python -m slf_effort.covariates --lyde lyde.csv --out data/covariates_ext.csv \
+    --raster bio1=wc2.1_10m_bio_1.tif --raster bio4=wc2.1_10m_bio_4.tif --raster bio5=wc2.1_10m_bio_5.tif \
+    --raster bio6=wc2.1_10m_bio_6.tif --raster bio12=wc2.1_10m_bio_12.tif --raster bio15=wc2.1_10m_bio_15.tif \
+    --raster logpop=usa_pd_2020_1km.tif:log1p
+python run_revision.py --lyde lyde.csv --covariates data/covariates_ext.csv --out results/revision   # ~8 min
+```
+
+Adds: component ablation of `ewc_pa` (`abl_*` treatments: B = 50-km buffer, E = environmental-envelope
+exclusion, enforced; W = propensity-weighted sampling), training separability, survey-data description,
+environmental/geographic similarity of transfer cells, effort-proxy / buffer / covariate-set sensitivity,
+AP / Boyce / alert-budget / calibration slope, bootstrap block size (25/50/100 km) and 30 block-subsampled refits.
+It re-runs the main treatments with the same seeds and reproduces `run_real.py` exactly.
+
+**Note on `ewc_pa`.** Its environmental exclusion is relaxed step-wise when fewer candidates remain than the
+target number of pseudo-absences. On the lydemapr data only ~1,000 cells lie beyond the 50-km buffer
+(target 1,959), so the exclusion is always fully relaxed (`training_diagnostics.csv` note `short:1038`) and
+`ewc_pa` as run = buffer + effort weighting. The ablation variant `abl_BEW` enforces all three.
+
 ## 4. Files
 
 | File | Purpose |
@@ -97,7 +118,8 @@ geographic lon/lat (EPSG:4326).
 | `make_tables.py` | Markdown tables for the manuscript |
 | `slf_effort/covariates.py` | optional raster -> `covariates.csv` |
 | `slf_effort/*.py` | library: data, background treatments, models, metrics, experiment, simulate, plots |
-| `tests/test_pipeline.py` | 33 unit tests (including a label-scrambling leakage test) |
+| `run_revision.py`, `slf_effort/revision.py` | analyses added in peer review (section 3b) |
+| `tests/test_pipeline.py` | 36 unit tests (including a label-scrambling leakage test) |
 | `example_results/` | outputs from my development run (real lyde.csv v3.0.0, full settings, and 4 scenarios x 10 virtual species) plus `paper_tables.md`; your run should reproduce them on the same library versions (`predictions.csv` omitted for size) |
 
 Outputs of `run_real.py`: `table1_data_summary.csv`, `metrics_by_stratum.csv`,
